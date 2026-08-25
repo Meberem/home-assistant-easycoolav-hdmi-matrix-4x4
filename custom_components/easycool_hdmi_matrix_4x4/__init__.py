@@ -10,9 +10,15 @@ except ImportError:  # pragma: no cover - exercised in test environments without
 from .const import DOMAIN
 
 
+async def _async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Reload the integration when entry options are updated."""
+    await hass.config_entries.async_reload(entry.entry_id)
+
+
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up the HDMI matrix integration from a Home Assistant config entry."""
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = {"entry": entry}
+    entry.async_on_unload(entry.add_update_listener(_async_update_listener))
     await hass.config_entries.async_forward_entry_setups(entry, ["select"])
     return True
 

@@ -31,6 +31,7 @@ from .const import (
     INPUT_COUNT,
     OUTPUT_COUNT,
     get_labels,
+    merge_entry_data,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -46,14 +47,15 @@ class HDMIOutputSelect(SelectEntity):
         self._entry = entry
         self._output_num = output_num
         self._attr_unique_id = f"{entry.entry_id}-output-{output_num}"
+        label_data = merge_entry_data(entry.data, entry.options)
         self._input_labels = get_labels(
-            entry.data,
+            label_data,
             CONF_INPUT_LABELS,
             CONF_INPUT_LABEL_FORMAT,
             DEFAULT_INPUT_LABELS,
         )
         self._output_labels = get_labels(
-            entry.data,
+            label_data,
             CONF_OUTPUT_LABELS,
             CONF_OUTPUT_LABEL_FORMAT,
             DEFAULT_OUTPUT_LABELS,

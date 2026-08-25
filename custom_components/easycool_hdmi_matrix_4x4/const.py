@@ -46,3 +46,8 @@ def get_labels(
         else:
             parsed.append(default)
     return parsed
+
+
+def merge_entry_data(data: dict[str, object], options: dict[str, object]) -> dict[str, object]:
+    """Return config entry data with options taking precedence."""
+    return {**data, **options}

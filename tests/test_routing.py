@@ -6,6 +6,7 @@ from custom_components.easycool_hdmi_matrix_4x4.bridge import (
     parse_video_states,
 )
 from custom_components.easycool_hdmi_matrix_4x4.const import get_labels
+from custom_components.easycool_hdmi_matrix_4x4.const import merge_entry_data
 
 
 class RoutingTests(unittest.TestCase):
@@ -45,6 +46,23 @@ class RoutingTests(unittest.TestCase):
             ["Input 1", "Input 2", "Input 3", "Input 4"],
         )
         self.assertEqual(labels[0], "Apple TV")
+
+    def test_options_override_configured_labels(self) -> None:
+        labels = get_labels(
+            merge_entry_data(
+                {
+                    "input_label_1": "Apple TV",
+                    "input_label_2": "Chromecast",
+                    "input_label_3": "PC",
+                    "input_label_4": "Console",
+                },
+                {"input_label_1": "Sky Q"},
+            ),
+            "input_labels",
+            "input_label_{}",
+            ["Input 1", "Input 2", "Input 3", "Input 4"],
+        )
+        self.assertEqual(labels[0], "Sky Q")
 
 
 if __name__ == "__main__":

@@ -31,6 +31,10 @@ from .const import (
 class HDMIConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     VERSION = 1
 
+    @staticmethod
+    def async_get_options_flow(config_entry):
+        return HDMIOptionsFlow(config_entry)
+
     async def async_step_user(self, user_input=None):
         errors: dict[str, str] = {}
         if user_input is not None:
@@ -55,4 +59,31 @@ class HDMIConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 }
             ),
             errors=errors,
+        )
+
+
+class HDMIOptionsFlow(config_entries.OptionsFlow):
+    def __init__(self, config_entry):
+        self._config_entry = config_entry
+
+    async def async_step_init(self, user_input=None):
+        if user_input is not None:
+            return self.async_create_entry(title="", data=user_input)
+
+        current = {**self._config_entry.data, **self._config_entry.options}
+
+        return self.async_show_form(
+            step_id="init",
+            data_schema=vol.Schema(
+                {
+                    vol.Optional(CONF_INPUT_LABEL_1, default=current.get(CONF_INPUT_LABEL_1, DEFAULT_INPUT_LABELS[0])): str,
+                    vol.Optional(CONF_INPUT_LABEL_2, default=current.get(CONF_INPUT_LABEL_2, DEFAULT_INPUT_LABELS[1])): str,
+                    vol.Optional(CONF_INPUT_LABEL_3, default=current.get(CONF_INPUT_LABEL_3, DEFAULT_INPUT_LABELS[2])): str,
+                    vol.Optional(CONF_INPUT_LABEL_4, default=current.get(CONF_INPUT_LABEL_4, DEFAULT_INPUT_LABELS[3])): str,
+                    vol.Optional(CONF_OUTPUT_LABEL_1, default=current.get(CONF_OUTPUT_LABEL_1, DEFAULT_OUTPUT_LABELS[0])): str,
+                    vol.Optional(CONF_OUTPUT_LABEL_2, default=current.get(CONF_OUTPUT_LABEL_2, DEFAULT_OUTPUT_LABELS[1])): str,
+                    vol.Optional(CONF_OUTPUT_LABEL_3, default=current.get(CONF_OUTPUT_LABEL_3, DEFAULT_OUTPUT_LABELS[2])): str,
+                    vol.Optional(CONF_OUTPUT_LABEL_4, default=current.get(CONF_OUTPUT_LABEL_4, DEFAULT_OUTPUT_LABELS[3])): str,
+                }
+            ),
         )

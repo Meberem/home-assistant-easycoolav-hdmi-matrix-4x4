@@ -2,10 +2,12 @@ import unittest
 
 from custom_components.easycool_hdmi_matrix_4x4.bridge import (
     build_button_id,
+    build_edid_url,
     build_route_url,
+    parse_edid_states,
     parse_video_states,
 )
-from custom_components.easycool_hdmi_matrix_4x4.const import get_labels
+from custom_components.easycool_hdmi_matrix_4x4.const import EDID_OPTIONS, get_labels
 from custom_components.easycool_hdmi_matrix_4x4.const import merge_entry_data
 
 
@@ -32,6 +34,31 @@ class RoutingTests(unittest.TestCase):
     def test_parse_video_states(self) -> None:
         states = parse_video_states("VidSta=O1I3&O2I1&O3I1&O4I1")
         self.assertEqual(states, {1: 3, 2: 1, 3: 1, 4: 1})
+
+    def test_build_edid_url(self) -> None:
+        url = build_edid_url(
+            host="192.168.1.239",
+            port=80,
+            ssl=False,
+            path="/",
+            input_num=3,
+            edid_token="EDIDD29",
+            nonce=12345,
+        )
+        self.assertEqual(
+            url,
+            "http://192.168.1.239:80/EdidsendCmd.CGI?button=EDIDD29IN3+12345",
+        )
+
+    def test_parse_edid_states(self) -> None:
+        states = parse_edid_states("EdidSta=EDIDU1&EDIDD29&EDIDD3&EDIDTO4")
+        self.assertEqual(states, {1: "EDIDU1", 2: "EDIDD29", 3: "EDIDD3", 4: "EDIDTO4"})
+
+    def test_edid_options_match_device_ui(self) -> None:
+        tokens = [token for token, _label in EDID_OPTIONS]
+        self.assertEqual(len(tokens), 41)
+        self.assertEqual(len(set(tokens)), len(tokens))
+        self.assertEqual(tokens[:30], [f"EDIDD{index}" for index in range(1, 31)])
 
     def test_configured_labels(self) -> None:
         labels = get_labels(

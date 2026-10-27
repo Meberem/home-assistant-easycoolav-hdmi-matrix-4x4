@@ -15,7 +15,7 @@ except ImportError:  # pragma: no cover - exercised in test environments without
     HomeAssistantError = RuntimeError  # type: ignore[assignment]
     AddEntitiesCallback = object  # type: ignore[assignment]
 
-from .bridge import read_state, send_route
+from .bridge import read_edid_state, read_state, send_edid, send_route
 from .const import (
     CONF_HOST,
     CONF_INPUT_LABEL_FORMAT,
@@ -28,6 +28,7 @@ from .const import (
     DEFAULT_INPUT_LABELS,
     DEFAULT_OUTPUT_LABELS,
     DOMAIN,
+    EDID_OPTIONS,
     INPUT_COUNT,
     OUTPUT_COUNT,
     get_labels,
@@ -131,11 +132,101 @@ class HDMIOutputSelect(SelectEntity):
             _LOGGER.debug("Unable to read HDMI matrix state for output %s", self._output_num)
 
 
+class HDMIInputEdidSelect(SelectEntity):
+    """Expose the EDID assignment selector for one HDMI input."""
+
+    _attr_has_entity_name = True
+    _attr_icon = "mdi:video-input-component"
+
+    def __init__(self, entry: ConfigEntry, input_num: int) -> None:
+        self._entry = entry
+        self._input_num = input_num
+        self._attr_unique_id = f"{entry.entry_id}-input-{input_num}-edid"
+        label_data = merge_entry_data(entry.data, entry.options)
+        self._input_labels = get_labels(
+            label_data,
+            CONF_INPUT_LABELS,
+            CONF_INPUT_LABEL_FORMAT,
+            DEFAULT_INPUT_LABELS,
+        )
+        self._token_by_option = {label: token for token, label in EDID_OPTIONS}
+        self._option_by_token = {token: label for token, label in EDID_OPTIONS}
+        self._attr_options = [label for _token, label in EDID_OPTIONS]
+        self._attr_current_option = None
+        self._current_token = None
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, entry.entry_id)},
+            "name": entry.data[CONF_HOST],
+            "manufacturer": "HDMI Matrix",
+            "model": "4x4 HDMI Matrix",
+            "configuration_url": f"http://{entry.data[CONF_HOST]}:{entry.data.get(CONF_PORT, 80)}{entry.data.get(CONF_PATH, "/")}",
+        }
+
+    @property
+    def name(self) -> str:
+        return f"{self._input_labels[self._input_num - 1]} EDID"
+
+    @property
+    def device_info(self) -> dict[str, object]:
+        return self._attr_device_info
+
+    @property
+    def should_poll(self) -> bool:
+        return True
+
+    @property
+    def current_option(self) -> str | None:
+        if self._current_token is not None:
+            return self._option_by_token.get(self._current_token)
+        return self._attr_current_option
+
+    async def async_select_option(self, option: str) -> None:
+        edid_token = self._token_by_option.get(option)
+        if edid_token is None:
+            raise HomeAssistantError(f"Unknown EDID option: {option}")
+        try:
+            states = await self.hass.async_add_executor_job(
+                send_edid,
+                self._entry.data[CONF_HOST],
+                self._entry.data[CONF_PORT],
+                self._entry.data.get(CONF_SSL, False),
+                self._entry.data.get(CONF_PATH, "/"),
+                self._input_num,
+                edid_token,
+            )
+        except Exception as exc:  # pragma: no cover - defensive logging path
+            _LOGGER.exception("Unable to send EDID command for input %s", self._input_num)
+            raise HomeAssistantError(str(exc)) from exc
+
+        self._current_token = states.get(self._input_num)
+        self._attr_current_option = option
+        self.async_write_ha_state()
+
+    async def async_added_to_hass(self) -> None:
+        await self.async_update()
+
+    async def async_update(self) -> None:
+        try:
+            states = await self.hass.async_add_executor_job(
+                read_edid_state,
+                self._entry.data[CONF_HOST],
+                self._entry.data[CONF_PORT],
+                self._entry.data.get(CONF_SSL, False),
+                self._entry.data.get(CONF_PATH, "/"),
+            )
+            self._current_token = states.get(self._input_num)
+            if self._current_token in self._option_by_token:
+                self._attr_current_option = self._option_by_token[self._current_token]
+        except Exception:  # pragma: no cover - matrix state may be unavailable at startup
+            _LOGGER.debug("Unable to read EDID state for input %s", self._input_num)
+
+
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Create four selectors for the HDMI matrix outputs."""
+    """Create routing selectors and one EDID selector per HDMI input."""
     entities = [HDMIOutputSelect(entry, output_num) for output_num in range(1, OUTPUT_COUNT + 1)]
+    entities.extend(HDMIInputEdidSelect(entry, input_num) for input_num in range(1, INPUT_COUNT + 1))
     async_add_entities(entities)

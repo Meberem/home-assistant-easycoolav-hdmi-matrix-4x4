@@ -6,7 +6,9 @@ Product: https://www.easycoolav.com/products/4k60-444-hdmi-matrix-4x4-dolby-visi
 
 ## What it does
 - Exposes one selector per output, for outputs 1-4.
+- Exposes one EDID selector per input, with all 30 built-in profiles, 3 user EDIDs, and 8 copy-from-output choices.
 - Sends the same CGI command pattern used by the web UI: `TimSendCmd.CGI?button=O<output>I<input>+<random>`.
+- Applies EDIDs using the device's `EdidsendCmd.CGI` endpoint and polls current assignments from `EDIDDivSta.CGI`.
 - Supports configuring the device host, port, SSL, and path.
 
 ## Files
